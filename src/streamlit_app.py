@@ -216,6 +216,18 @@ def set_simple_style():
             overflow: hidden;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
+        
+        /* 动图自动播放样式 */
+        .gif-container {
+            text-align: center;
+            margin: 1rem 0;
+        }
+        
+        .auto-play-gif {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -253,8 +265,8 @@ def init_session_state():
         st.session_state.songs_meta = []
     if "all_images" not in st.session_state:
         st.session_state.all_images = []
-    if "zodiac_videos" not in st.session_state:
-        st.session_state.zodiac_videos = {}
+    if "zodiac_gifs" not in st.session_state:  # 修改为zodiac_gifs
+        st.session_state.zodiac_gifs = {}
     if "last_fortune_date" not in st.session_state:
         st.session_state.last_fortune_date = None
     if "chat_history" not in st.session_state:
@@ -344,11 +356,11 @@ def get_guardian_spirit(zodiac: str):
     return GUARDIAN_SPIRITS.get(zodiac, "")
 
 def load_media_resources():
-    """加载音乐和视频资源"""
+    """加载音乐和动图资源"""
     try:
         songs = []
         all_images = []
-        zodiac_videos = {}
+        zodiac_gifs = {}  # 修改为zodiac_gifs
 
         # 加载音乐
         music_dirs = ["src/music", "./src/music", "music", "./music"]
@@ -367,7 +379,7 @@ def load_media_resources():
                                 "path": p
                             })
 
-        # 加载图片和视频
+        # 加载图片和动图
         image_dirs = ["src/images", "./src/images", "images", "./images"]
         for image_dir in image_dirs:
             if os.path.exists(image_dir):
@@ -378,23 +390,23 @@ def load_media_resources():
                         if os.path.isfile(p):
                             all_images.append(p)
                 
-                # 加载生肖动图
-                for ext in ("*.gif", "*.gif"):
-                    video_files = glob.glob(os.path.join(image_dir, ext))
-                    for p in video_files:
+                # 加载生肖动图 - 专门搜索.gif文件
+                for ext in ("*.gif", "*.GIF"):
+                    gif_files = glob.glob(os.path.join(image_dir, ext))
+                    for p in gif_files:
                         if os.path.isfile(p):
                             filename = os.path.basename(p).lower()
                             for zodiac in ZODIAC:
                                 if zodiac in filename:
-                                    zodiac_videos[zodiac] = p
+                                    zodiac_gifs[zodiac] = p
                                     break
 
         st.session_state.songs_meta = songs
         st.session_state.all_images = all_images
-        st.session_state.zodiac_videos = zodiac_videos
+        st.session_state.zodiac_gifs = zodiac_gifs  # 修改为zodiac_gifs
         st.session_state.media_indexed = True
         
-        st.success(f"✅ 加载了 {len(songs)} 首音乐, {len(all_images)} 张图片和 {len(zodiac_videos)} 个生肖动图")
+        st.success(f"✅ 加载了 {len(songs)} 首音乐, {len(all_images)} 张图片和 {len(zodiac_gifs)} 个生肖动图")
         
     except Exception as e:
         st.error(f"加载媒体资源时出错: {e}")
@@ -432,22 +444,22 @@ def get_random_image():
         return random.choice(all_images)
     return None
 
-def get_zodiac_video(zodiac):
+def get_zodiac_gif(zodiac):
     """获取生肖动图"""
-    zodiac_videos = st.session_state.zodiac_videos
-    return zodiac_videos.get(zodiac)
+    zodiac_gifs = st.session_state.zodiac_gifs
+    return zodiac_gifs.get(zodiac)
 
 def display_media(song_meta, zodiac):
-    """显示动图和音乐"""
+    """显示动图和音乐 - 动图自动播放"""
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        zodiac_video = get_zodiac_video(zodiac)
-        if zodiac_video and os.path.exists(zodiac_video):
-            st.markdown("<div class='video-container'>", unsafe_allow_html=True)
-            st.video(zodiac_video, autoplay = True)
+        zodiac_gif = get_zodiac_gif(zodiac)
+        if zodiac_gif and os.path.exists(zodiac_gif):
+            # 使用st.image显示动图，动图会自动播放
+            st.markdown("<div class='gif-container'>", unsafe_allow_html=True)
+            st.image(zodiac_gif, caption=f"今日守护生肖：{zodiac}", use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
-            st.caption(f"今日守护生肖：{zodiac}")
         else:
             random_image = get_random_image()
             if random_image and os.path.exists(random_image):
@@ -461,7 +473,14 @@ def display_media(song_meta, zodiac):
         
         if os.path.exists(song_meta["path"]):
             try:
-                st.audio(song_meta["path"])
+                # 音乐自动播放
+                audio_html = f"""
+                <audio autoplay controls style="width: 100%;">
+                    <source src="{song_meta['path']}" type="audio/mp3">
+                    您的浏览器不支持音频元素。
+                </audio>
+                """
+                st.markdown(audio_html, unsafe_allow_html=True)
             except Exception as e:
                 st.error(f"播放音乐失败: {e}")
         else:
