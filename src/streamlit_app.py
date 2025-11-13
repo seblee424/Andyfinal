@@ -1,4 +1,5 @@
 import streamlit as st
+from openai import OpenAI
 import os
 from datetime import datetime, timedelta
 import glob
@@ -6,14 +7,6 @@ import numpy as np
 import random
 import base64
 
-# 尝试导入OpenAI，如果失败则使用降级方案
-try:
-    from openai import OpenAI
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
-    st.warning("⚠️ OpenAI库未安装，部分功能将使用本地数据")
-    
 # 页面配置
 st.set_page_config(
     page_title="八字塔罗运势",
@@ -43,17 +36,6 @@ def set_background_video(video_path):
             height: auto;
             z-index: -100;
             background-size: cover;
-        }}
-        
-        /* 确保Streamlit内容在视频之上 */
-        .main {{
-            position: relative;
-            z-index: 1;
-        }}
-        
-        .block-container {{
-            position: relative;
-            z-index: 2;
         }}
         </style>
         <video id="bgVideo" autoplay muted loop>
@@ -140,6 +122,10 @@ def set_simple_style():
             text-align: center;
         }
         
+        .recommendation-button:hover {
+            background-color: #5b4bc4;
+        }
+        
         .active-button {
             background-color: #e17055 !important;
         }
@@ -197,34 +183,16 @@ def set_simple_style():
             background-color: rgba(243, 229, 245, 0.9);
             border-left: 4px solid #9c27b0;
         }
-        
-        .video-container {
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
     </style>
     """, unsafe_allow_html=True)
 
 set_simple_style()
 
-# -------------------- 初始化OpenAI客户端 --------------------
-def get_openai_client():
-    """获取OpenAI客户端，如果不可用则返回None"""
-    if not OPENAI_AVAILABLE:
-        return None
-    
-    try:
-        client = OpenAI(
-            api_key="sk-72997944466a4af2bcd52a068895f8cf",
-            base_url="https://api.deepseek.com"
-        )
-        return client
-    except Exception as e:
-        st.error(f"OpenAI客户端初始化失败: {e}")
-        return None
-
-client = get_openai_client()
+# 初始化OpenAI客户端
+client = OpenAI(
+    api_key="sk-72997944466a4af2bcd52a068895f8cf",
+    base_url="https://api.deepseek.com"
+)
 
 # -------------------- 会话状态初始化 --------------------
 def init_session_state():
@@ -240,8 +208,8 @@ def init_session_state():
         st.session_state.songs_meta = []
     if "all_images" not in st.session_state:
         st.session_state.all_images = []
-    if "zodiac_videos" not in st.session_state:
-        st.session_state.zodiac_videos = {}
+    if "zodiac_images" not in st.session_state:
+        st.session_state.zodiac_images = {}
     if "last_fortune_date" not in st.session_state:
         st.session_state.last_fortune_date = None
     if "chat_history" not in st.session_state:
@@ -285,38 +253,6 @@ GUARDIAN_SPIRITS = {
     "猪": "福气守护灵 - 带给你好运和丰盛的能量"
 }
 
-# 本地推荐数据（降级方案）
-LOCAL_RECOMMENDATIONS = {
-    "工作类型": {
-        "鼠": "数据分析师、投资顾问、心理咨询师 - 发挥你的敏锐洞察力",
-        "牛": "工程师、会计师、农业专家 - 适合踏实稳重的工作",
-        "虎": "企业家、销售总监、运动员 - 发挥领导力和行动力",
-        "兔": "教师、设计师、医护人员 - 适合温和细致的工作",
-        "龙": "管理者、创意总监、政治家 - 发挥领导才能",
-        "蛇": "研究员、策划师、分析师 - 适合深度思考的工作",
-        "马": "旅行博主、销售、创业者 - 适合自由奔放的性格",
-        "羊": "艺术家、社工、教育工作者 - 发挥艺术天赋和同情心",
-        "猴": "公关、程序员、主持人 - 适合灵活多变的工作",
-        "鸡": "编辑、质检员、律师 - 发挥细致入微的特点",
-        "狗": "警察、教师、顾问 - 适合忠诚可靠的工作",
-        "猪": "厨师、酒店管理、慈善工作 - 发挥真诚善良的特质"
-    },
-    "电影": {
-        "鼠": "《肖申克的救赎》- 智慧与坚持的胜利\n《心灵捕手》- 发掘内在潜力",
-        "牛": "《当幸福来敲门》- 勤奋终有回报\n《阿甘正传》- 单纯坚持的力量",
-        "虎": "《勇敢的心》- 勇气与自由\n《国王的演讲》- 克服恐惧",
-        "兔": "《海蒂和爷爷》- 温暖治愈\n《小森林》- 简单生活之美",
-        "龙": "《指环王》- 领导与责任\n《盗梦空间》- 创意无限",
-        "蛇": "《禁闭岛》- 深度心理探索\n《消失的爱人》- 复杂人性",
-        "马": "《荒野求生》- 自由冒险精神\n《罗马假日》- 浪漫旅程",
-        "羊": "《放牛班的春天》- 艺术与教育\n《天使爱美丽》- 温暖善良",
-        "猴": "《猫鼠游戏》- 机智对决\n《王牌特工》- 优雅智慧",
-        "鸡": "《穿普拉达的女王》- 职场成长\n《完美陌生人》- 细节洞察",
-        "狗": "《忠犬八公的故事》- 忠诚守护\n《绿里奇迹》- 正义与善良",
-        "猪": "《寻梦环游记》- 家庭温暖\n《美食总动员》- 美食与幸福"
-    }
-}
-
 def year_to_zodiac(year: int):
     return ZODIAC[(year - 1900) % 12]
 
@@ -331,113 +267,59 @@ def get_guardian_spirit(zodiac: str):
     return GUARDIAN_SPIRITS.get(zodiac, "")
 
 def load_media_resources():
-    """加载音乐和视频资源"""
+    """加载音乐和图片资源 - 根据您的项目结构调整路径"""
     try:
         songs = []
         all_images = []
-        zodiac_videos = {}
+        zodiac_images = {}
 
-        # 加载音乐 - 修复搜索路径
+        # 加载音乐 - 从 src/music/ 目录
         music_dirs = ["src/music", "./src/music", "music", "./music"]
         for music_dir in music_dirs:
             if os.path.exists(music_dir):
-                st.write(f"🔍 搜索音乐目录: {music_dir}")
-                # 使用递归搜索来查找所有子目录中的mp3文件
-                for ext in ["*.mp3", "*.MP3"]:
-                    # 使用递归搜索模式
-                    search_pattern = os.path.join(music_dir, "**", ext)
-                    music_files = glob.glob(search_pattern, recursive=True)
-                    
-                    # 同时搜索当前目录
-                    current_dir_files = glob.glob(os.path.join(music_dir, ext))
-                    music_files.extend(current_dir_files)
-                    
+                for ext in ("*.mp3", "*.wav", "*.m4a"):
+                    music_files = glob.glob(os.path.join(music_dir, "**", ext), recursive=True)
                     for p in music_files:
                         if os.path.isfile(p):
-                            try:
-                                fname = os.path.basename(p)
-                                name_no_ext = os.path.splitext(fname)[0]
-                                
-                                # 解析文件名获取情感标签
-                                emotion = "中性"
+                            fname = os.path.basename(p)
+                            name_no_ext = os.path.splitext(fname)[0]
+                            # 简单的文件名解析
+                            if " - " in name_no_ext:
+                                parts = name_no_ext.split(" - ")
+                                title = parts[-1]
+                                emotion = parts[0] if len(parts) > 1 else "中性"
+                            else:
                                 title = name_no_ext
-                                
-                                # 尝试从文件名解析情感标签
-                                if " - " in name_no_ext:
-                                    parts = name_no_ext.split(" - ")
-                                    if len(parts) >= 2:
-                                        emotion = parts[0].strip()
-                                        title = " - ".join(parts[1:]).strip()
-                                elif "_" in name_no_ext:
-                                    parts = name_no_ext.split("_")
-                                    if len(parts) >= 2:
-                                        emotion = parts[0].strip()
-                                        title = "_".join(parts[1:]).strip()
-                                
-                                # 自动识别情感关键词
-                                emotion_lower = emotion.lower()
-                                if any(word in emotion_lower for word in ["快乐", "开心", "喜悦", "高兴"]):
-                                    emotion = "快乐"
-                                elif any(word in emotion_lower for word in ["平静", "安宁", "放松", "冥想"]):
-                                    emotion = "平静"
-                                elif any(word in emotion_lower for word in ["悲伤", "忧郁", "伤感"]):
-                                    emotion = "悲伤"
-                                elif any(word in emotion_lower for word in ["浪漫", "爱情", "温柔"]):
-                                    emotion = "浪漫"
-                                elif any(word in emotion_lower for word in ["振奋", "激情", "活力"]):
-                                    emotion = "振奋"
-                                
-                                song_data = {
-                                    "filename": fname,
-                                    "title": title,
-                                    "emotion": emotion,
-                                    "path": p
-                                }
-                                songs.append(song_data)
-                                st.write(f"🎵 加载音乐: {title} ({emotion})")
-                                
-                            except Exception as e:
-                                st.warning(f"跳过异常音乐文件 {fname}: {e}")
+                                emotion = "中性"
+                            
+                            songs.append({
+                                "filename": fname,
+                                "title": title,
+                                "emotion": emotion,
+                                "path": p
+                            })
 
-        # 加载图片和视频
+        # 加载图片 - 从 src/images/ 目录
         image_dirs = ["src/images", "./src/images", "images", "./images"]
         for image_dir in image_dirs:
             if os.path.exists(image_dir):
-                st.write(f"🔍 搜索媒体目录: {image_dir}")
-                
-                # 加载静态图片
                 for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
                     image_files = glob.glob(os.path.join(image_dir, "**", ext), recursive=True)
                     for p in image_files:
                         if os.path.isfile(p):
                             all_images.append(p)
-                
-                # 加载生肖动图
-                for ext in ("*.mp4", "*.MP4"):
-                    video_files = glob.glob(os.path.join(image_dir, "**", ext), recursive=True)
-                    for p in video_files:
-                        if os.path.isfile(p):
                             filename = os.path.basename(p).lower()
                             for zodiac in ZODIAC:
                                 if zodiac in filename:
-                                    zodiac_videos[zodiac] = p
-                                    st.write(f"🎬 加载生肖动图: {zodiac}")
+                                    zodiac_images[zodiac] = p
                                     break
 
         st.session_state.songs_meta = songs
         st.session_state.all_images = all_images
-        st.session_state.zodiac_videos = zodiac_videos
+        st.session_state.zodiac_images = zodiac_images
         st.session_state.media_indexed = True
         
-        st.success(f"✅ 加载完成: {len(songs)} 首音乐, {len(all_images)} 张图片, {len(zodiac_videos)} 个生肖动图")
-        
-        # 显示加载的音乐列表
-        if songs:
-            st.write("### 📋 已加载的音乐列表:")
-            for i, song in enumerate(songs[:10]):  # 只显示前10首
-                st.write(f"{i+1}. {song['title']} - {song['emotion']}")
-            if len(songs) > 10:
-                st.write(f"... 还有 {len(songs) - 10} 首音乐")
+        st.success(f"✅ 加载了 {len(songs)} 首音乐和 {len(all_images)} 张图片")
         
     except Exception as e:
         st.error(f"加载媒体资源时出错: {e}")
@@ -446,19 +328,16 @@ def match_song_by_text(text: str, top_k=1):
     """简化版音乐匹配"""
     songs = st.session_state.songs_meta
     if not songs:
-        st.warning("⚠️ 没有可用的音乐文件")
         return []
 
     text_lower = text.lower()
     matched_songs = []
     
-    # 情感关键词映射
     emotion_keywords = {
-        "快乐": ["快乐", "开心", "喜悦", "幸福", "愉快", "高兴", "好运", "顺利", "成功", "幸运"],
-        "悲伤": ["悲伤", "难过", "伤心", "忧郁", "失落", "痛苦", "困难", "挫折", "挑战"],
-        "平静": ["平静", "安宁", "安静", "平和", "稳定", "放松", "休息", "冥想", "冷静"],
-        "浪漫": ["浪漫", "爱情", "恋爱", "甜蜜", "温柔", "心动", "缘分", "感情", "姻缘"],
-        "振奋": ["振奋", "兴奋", "激动", "热情", "活力", "充满", "积极", "动力", "能量"]
+        "快乐": ["快乐", "开心", "喜悦", "幸福", "愉快", "高兴", "好运", "顺利"],
+        "悲伤": ["悲伤", "难过", "伤心", "忧郁", "失落", "困难", "挫折"],
+        "平静": ["平静", "安宁", "安静", "平和", "稳定", "放松", "休息"],
+        "振奋": ["振奋", "兴奋", "激动", "热情", "活力", "充满", "积极"]
     }
     
     for song in songs:
@@ -468,30 +347,23 @@ def match_song_by_text(text: str, top_k=1):
         
         # 基于情感标签匹配
         for emotion, keywords in emotion_keywords.items():
-            if emotion == song_emotion:
+            if emotion in song_emotion:
                 for keyword in keywords:
                     if keyword in text_lower:
-                        score += 3  # 情感匹配权重更高
+                        score += 2
                         break
         
         # 基于标题关键词匹配
-        for keyword in text_lower.split():
-            if len(keyword) > 1 and keyword in song_title:
+        title_words = song_title.split()
+        for word in title_words:
+            if len(word) > 2 and word in text_lower:
                 score += 1
-        
-        # 特殊运势关键词匹配
-        if "好运" in text_lower and song_emotion in ["快乐", "振奋"]:
-            score += 2
-        if "注意" in text_lower and song_emotion in ["平静"]:
-            score += 1
-        if "感情" in text_lower and song_emotion in ["浪漫"]:
-            score += 2
         
         if score > 0:
             matched_songs.append((score, song))
     
-    # 如果没有匹配的，随机选择一首
     if not matched_songs and songs:
+        # 如果没有匹配的，随机选择一首
         matched_songs.append((1, random.choice(songs)))
     
     matched_songs.sort(key=lambda x: x[0], reverse=True)
@@ -503,28 +375,24 @@ def get_random_image():
         return random.choice(all_images)
     return None
 
-def get_zodiac_video(zodiac):
-    """获取生肖动图"""
-    zodiac_videos = st.session_state.zodiac_videos
-    return zodiac_videos.get(zodiac)
+def get_zodiac_image(zodiac):
+    zodiac_images = st.session_state.zodiac_images
+    return zodiac_images.get(zodiac)
 
 def display_media(song_meta, zodiac):
-    """显示动图和音乐"""
+    """显示图片和音乐"""
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        zodiac_video = get_zodiac_video(zodiac)
-        if zodiac_video and os.path.exists(zodiac_video):
-            st.markdown("<div class='video-container'>", unsafe_allow_html=True)
-            st.video(zodiac_video)
-            st.markdown("</div>", unsafe_allow_html=True)
-            st.caption(f"今日守护生肖：{zodiac}")
+        zodiac_image = get_zodiac_image(zodiac)
+        if zodiac_image and os.path.exists(zodiac_image):
+            st.image(zodiac_image, caption=f"今日守护生肖：{zodiac}", use_container_width=True)
         else:
             random_image = get_random_image()
             if random_image and os.path.exists(random_image):
                 st.image(random_image, caption=f"今日守护生肖：{zodiac}", use_container_width=True)
             else:
-                st.info("📷 暂无生肖动图资源")
+                st.info("📷 暂无图片资源")
     
     with col2:
         st.subheader(f"🎵 {song_meta['title']}")
@@ -532,32 +400,14 @@ def display_media(song_meta, zodiac):
         
         if os.path.exists(song_meta["path"]):
             try:
-                # 显示文件信息（调试用）
-                file_size = os.path.getsize(song_meta["path"]) / 1024 / 1024
-                st.write(f"**文件大小：** {file_size:.2f} MB")
-                
-                # 播放音乐
-                st.audio(song_meta["path"], format="audio/mp3")
-                
+                st.audio(song_meta["path"])
             except Exception as e:
                 st.error(f"播放音乐失败: {e}")
-                # 尝试直接使用文件路径
-                try:
-                    st.audio(song_meta["path"])
-                except Exception as e2:
-                    st.error(f"备用播放方式也失败: {e2}")
         else:
-            st.error(f"音乐文件不存在：{song_meta['path']}")
-
-# ... 其余函数保持不变（generate_specific_recommendation, should_regenerate_fortune, generate_daily_fortune, chat_with_ai, render_chat_interface, render_home_page, render_daily_fortune, render_personal_recommendation, main）
+            st.error("音乐文件不存在")
 
 def generate_specific_recommendation(recommendation_type, zodiac, birth_year, place, birth_hour, gender):
     """生成特定类型的推荐"""
-    # 如果OpenAI不可用，使用本地数据
-    if not client:
-        local_data = LOCAL_RECOMMENDATIONS.get(recommendation_type, {})
-        return local_data.get(zodiac, f"暂无{recommendation_type}的本地推荐数据")
-    
     prompts = {
         "工作类型": f"基于生肖{zodiac}、{birth_year}年出生、{place}人、{gender}性的特点，推荐3个最适合的工作类型，并说明理由",
         "车型": f"根据生肖{zodiac}的性格特点和命理，推荐2款最适合的汽车类型，说明为什么适合",
@@ -582,9 +432,7 @@ def generate_specific_recommendation(recommendation_type, zodiac, birth_year, pl
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        # 如果API调用失败，使用本地数据
-        local_data = LOCAL_RECOMMENDATIONS.get(recommendation_type, {})
-        return local_data.get(zodiac, f"暂时无法生成{recommendation_type}推荐，请稍后再试。")
+        return f"暂时无法生成{recommendation_type}推荐，请稍后再试。"
 
 def should_regenerate_fortune():
     """检查是否需要重新生成运势"""
@@ -595,62 +443,23 @@ def should_regenerate_fortune():
         return True
     return False
 
-def generate_daily_fortune(zodiac, birth_info):
-    """生成今日运势"""
-    # 如果OpenAI不可用，使用本地运势
-    if not client:
-        fortunes = [
-            f"今日{get_zodiac_description(zodiac)}，运势平稳，保持积极心态。",
-            f"生肖{zodiac}今日贵人运佳，多与人交流会有意外收获。",
-            f"今天适合{get_zodiac_description(zodiac).split('，')[0]}，把握机会展现自己。",
-            f"{zodiac}生肖今日财运不错，但要注意理性消费。",
-            f"今日感情运势良好，{get_zodiac_description(zodiac)}的特质会为你加分。"
-        ]
-        return random.choice(fortunes)
-    
-    try:
-        prompt = f"""
-        用户生肖：{zodiac}
-        出生年份：{birth_info['year']}
-        性别：{birth_info['gender']}
-        当前日期：{datetime.now().strftime('%Y年%m月%d日')}
-        
-        生成简短精准的今日运势（60字左右），语言温暖、简洁。
-        """
-
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=150
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        return "今日运势平稳，保持积极心态，好事自然来。注意与人沟通，避免小误会。"
-
 def chat_with_ai(user_message, birth_info, zodiac):
     """与AI聊天"""
     if not birth_info:
         return "请先在主页输入您的八字信息。"
     
-    # 如果OpenAI不可用，使用简单回复
-    if not client:
-        responses = [
-            "基于您的生肖信息，建议保持积极心态，好事自然会来。",
-            f"生肖{zodiac}通常{get_zodiac_description(zodiac).lower()}，在这方面多加发挥会有不错的结果。",
-            "这个问题需要更多个人信息来分析，请确保已输入完整的八字信息。",
-            "传统命理强调顺势而为，建议根据当前情况灵活调整策略。"
-        ]
-        return random.choice(responses)
-    
     prompt = f"""
     用户信息：
     - 生肖：{zodiac}
     - 出生年份：{birth_info['year']}
+    - 出生地点：{birth_info['place']}
+    - 出生时辰：{birth_info['hour']}
+    - 性别：{birth_info['gender']}
     
     用户问题：{user_message}
     
     请基于用户的八字信息和生肖特点，给出专业、温暖的回答。
+    回答要结合传统命理智慧，同时保持积极正向。
     """
     
     try:
@@ -667,23 +476,56 @@ def chat_with_ai(user_message, birth_info, zodiac):
 def render_chat_interface():
     """显示聊天界面"""
     st.subheader("💬 您还有什么想了解的吗？")
+    st.write("我可以为您解答关于运势、命理、生活建议等任何问题")
     
     # 显示聊天历史
     for message in st.session_state.chat_history:
         if message["role"] == "user":
-            st.markdown(f"**👤 您：** {message['content']}")
+            st.markdown(f"""
+            <div class="chat-message user-message">
+                <strong>👤 您：</strong> {message["content"]}
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.markdown(f"**🔮 运势助手：** {message['content']}")
+            st.markdown(f"""
+            <div class="chat-message assistant-message">
+                <strong>🔮 运势助手：</strong> {message["content"]}
+            </div>
+            """, unsafe_allow_html=True)
     
-    user_question = st.text_input("输入您的问题...", key="chat_input")
-    if st.button("发送") and user_question.strip():
-        st.session_state.chat_history.append({"role": "user", "content": user_question})
+    # 聊天输入
+    col1, col2 = st.columns([4, 1])
+    with col1:
+        user_question = st.text_input(
+            "输入您的问题...",
+            value=st.session_state.user_question,
+            key="chat_input",
+            placeholder="例如：我的财运如何？感情运势怎么样？健康方面要注意什么？"
+        )
+    with col2:
+        send_button = st.button("发送", use_container_width=True)
+    
+    if send_button and user_question.strip():
+        # 添加用户消息到历史
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": user_question
+        })
         
+        # 获取AI回复
         with st.spinner("🔮 正在思考..."):
             birth_info = st.session_state.birth_info
             zodiac = year_to_zodiac(birth_info['year']) if birth_info else "未知"
             ai_response = chat_with_ai(user_question, birth_info, zodiac)
-            st.session_state.chat_history.append({"role": "assistant", "content": ai_response})
+            
+            # 添加AI回复到历史
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": ai_response
+            })
+        
+        # 清空输入框
+        st.session_state.user_question = ""
         st.rerun()
 
 # -------------------- 页面组件 --------------------
@@ -696,6 +538,8 @@ def render_home_page():
             load_media_resources()
 
     with st.form("birth_info_form"):
+        st.subheader("📝 请输入您的八字信息")
+        
         col1, col2 = st.columns(2)
         with col1:
             birth_year = st.number_input("出生年份", min_value=1900, max_value=datetime.now().year, value=2000)
@@ -706,33 +550,48 @@ def render_home_page():
                 "子时(23-1)", "丑时(1-3)", "寅时(3-5)", "卯时(5-7)", 
                 "辰时(7-9)", "巳时(9-11)", "午时(11-13)", "未时(13-15)",
                 "申时(15-17)", "酉时(17-19)", "戌时(19-21)", "亥时(21-23)"
-            ])
+            ], index=4)
         
-        birth_place = st.text_input("出生地点", placeholder="例如：北京、上海")
-        gender = st.selectbox("性别", options=["男", "女"])
+        col3, col4 = st.columns(2)
+        with col3:
+            birth_place = st.text_input("出生地点", placeholder="例如：北京、上海")
+        with col4:
+            gender = st.selectbox("性别", options=["男", "女"])
         
-        if st.form_submit_button("🚀 保存八字信息"):
-            if birth_place.strip():
+        submit_btn = st.form_submit_button("🚀 保存八字信息", type="primary")
+        
+        if submit_btn:
+            if birth_place.strip() == "":
+                st.warning("请输入出生地点")
+            else:
                 st.session_state.birth_info = {
                     "year": birth_year, "month": birth_month, "day": birth_day,
                     "hour": birth_hour, "place": birth_place, "gender": gender
                 }
                 st.success("✅ 八字信息已保存！")
+                # 重置状态
                 st.session_state.daily_fortune = None
                 st.session_state.personal_recommendations = {}
                 st.session_state.chat_history = []
-            else:
-                st.warning("请输入出生地点")
 
+    # 显示生肖信息
     if st.session_state.birth_info:
+        st.divider()
         zodiac = year_to_zodiac(st.session_state.birth_info['year'])
+        zodiac_emoji = get_zodiac_emoji(zodiac)
+        zodiac_desc = get_zodiac_description(zodiac)
+        
         st.markdown(f"""
         <div class="zodiac-section">
-            <h1>{get_zodiac_emoji(zodiac)} {zodiac}</h1>
-            <h3>{get_zodiac_description(zodiac)}</h3>
+            <h1>{zodiac_emoji} {zodiac}</h1>
+            <h3>{zodiac_desc}</h3>
+            <p>出生年份：{st.session_state.birth_info['year']}年 | 生肖：{zodiac} | 性别：{st.session_state.birth_info['gender']}</p>
         </div>
         """, unsafe_allow_html=True)
         
+        # 导航到其他页面
+        st.divider()
+        st.subheader("探索更多")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("📅 查看今日运势", use_container_width=True):
@@ -742,6 +601,8 @@ def render_home_page():
             if st.button("🌟 查看个性推荐", use_container_width=True):
                 st.session_state.current_page = "personal"
                 st.rerun()
+    else:
+        st.info("👆 请先输入您的八字信息以解锁完整功能")
 
 def render_daily_fortune():
     st.title("📅 今日运势")
@@ -756,6 +617,13 @@ def render_daily_fortune():
     birth_info = st.session_state.birth_info
     zodiac = year_to_zodiac(birth_info['year'])
     
+    st.subheader(f"🐉 您的生肖：{zodiac}")
+    st.write(f"**出生信息：** {birth_info['year']}年{birth_info['month']}月{birth_info['day']}日 {birth_info['hour']} | {birth_info['place']} | 性别：{birth_info['gender']}")
+    st.divider()
+
+    # 检查是否需要重新生成运势
+    should_regenerate_fortune()
+
     # 个人生肖守护灵
     st.subheader("✨ 个人生肖守护灵")
     guardian_spirit = get_guardian_spirit(zodiac)
@@ -768,11 +636,32 @@ def render_daily_fortune():
 
     # 今日运势
     st.subheader("🎯 今日运势")
-    should_regenerate_fortune()
-    
     if st.session_state.daily_fortune is None:
         with st.spinner("🔮 正在占卜今日运势..."):
-            st.session_state.daily_fortune = generate_daily_fortune(zodiac, birth_info)
+            try:
+                prompt = f"""
+                用户生肖：{zodiac}
+                出生年份：{birth_info['year']}
+                出生地点：{birth_info['place']}
+                性别：{birth_info['gender']}
+                当前日期：{datetime.now().strftime('%Y年%m月%d日')}
+                
+                生成简短精准的今日运势（60字左右），包含：
+                1. 整体运势走向
+                2. 核心注意事项
+                3. 积极正向的祝福结尾
+                语言温暖、简洁。
+                """
+
+                response = client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.7,
+                    max_tokens=150
+                )
+                st.session_state.daily_fortune = response.choices[0].message.content.strip()
+            except Exception as e:
+                st.session_state.daily_fortune = "今日运势平稳，保持积极心态，好事自然来。注意与人沟通，避免小误会。祝你今天一切顺利！"
 
     st.info(st.session_state.daily_fortune)
 
@@ -782,21 +671,32 @@ def render_daily_fortune():
         matched_songs = match_song_by_text(st.session_state.daily_fortune, 1)
         if matched_songs:
             score, song = matched_songs[0]
-            st.write(f"🎯 匹配度: {score}")
             display_media(song, zodiac)
         else:
             st.warning("暂无匹配的音乐推荐")
     else:
         st.info("🎵 音乐功能准备中...")
 
+    # 免责声明
+    st.markdown("""
+    <div class="disclaimer">
+    💫 以上内容仅供参考，八字可以更深度的了解自己，但生活是不可被定义的。
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 聊天界面
+    st.divider()
     render_chat_interface()
-    
+
+    # 返回主页
+    st.divider()
     if st.button("🔙 返回主页"):
         st.session_state.current_page = "home"
         st.rerun()
 
 def render_personal_recommendation():
     st.title("🌟 个性推荐")
+    st.subheader("基于您的八字生成的专属生活建议")
     
     if not st.session_state.birth_info:
         st.warning("请先在主页面输入八字信息")
@@ -807,6 +707,14 @@ def render_personal_recommendation():
 
     birth_info = st.session_state.birth_info
     zodiac = year_to_zodiac(birth_info['year'])
+    
+    st.write(f"**您的生肖：** {zodiac}")
+    st.write(f"**出生年份：** {birth_info['year']}年")
+    st.write(f"**出生地点：** {birth_info['place']}")
+    st.write(f"**出生时辰：** {birth_info['hour']}")
+    st.write(f"**性别：** {birth_info['gender']}")
+    
+    st.divider()
     
     # 推荐类型按钮
     st.subheader("🎯 选择推荐类型")
@@ -826,35 +734,66 @@ def render_personal_recommendation():
     cols = st.columns(4)
     for idx, (display_name, rec_type) in enumerate(recommendation_types.items()):
         with cols[idx % 4]:
+            is_active = st.session_state.recommendation_type == rec_type
+            button_style = "active-button" if is_active else ""
             if st.button(display_name, use_container_width=True, key=f"btn_{rec_type}"):
                 st.session_state.recommendation_type = rec_type
+                st.session_state.current_recommendation = None
                 st.rerun()
+    
+    st.divider()
     
     # 显示选中的推荐内容
     if st.session_state.recommendation_type:
         st.subheader(f"📋 {[k for k, v in recommendation_types.items() if v == st.session_state.recommendation_type][0]}")
         
+        # 检查是否已经生成过该推荐
         if st.session_state.recommendation_type in st.session_state.personal_recommendations:
             recommendation_content = st.session_state.personal_recommendations[st.session_state.recommendation_type]
         else:
-            with st.spinner("🔮 正在生成推荐..."):
+            # 生成新的推荐
+            with st.spinner(f"🔮 正在生成{st.session_state.recommendation_type}推荐..."):
                 recommendation_content = generate_specific_recommendation(
                     st.session_state.recommendation_type,
                     zodiac, birth_info['year'], birth_info['place'], 
                     birth_info['hour'], birth_info['gender']
                 )
+                # 保存到session state
                 st.session_state.personal_recommendations[st.session_state.recommendation_type] = recommendation_content
         
+        # 显示推荐内容
         st.markdown(f"""
         <div class="recommendation-card">
             {recommendation_content}
         </div>
         """, unsafe_allow_html=True)
+        
+        # 重新生成按钮
+        if st.button("🔄 重新生成此推荐", use_container_width=True):
+            with st.spinner("重新生成中..."):
+                new_recommendation = generate_specific_recommendation(
+                    st.session_state.recommendation_type,
+                    zodiac, birth_info['year'], birth_info['place'],
+                    birth_info['hour'], birth_info['gender']
+                )
+                st.session_state.personal_recommendations[st.session_state.recommendation_type] = new_recommendation
+            st.rerun()
     else:
         st.info("👆 请选择上方的推荐类型来查看具体建议")
-
-    render_chat_interface()
     
+    # 免责声明
+    st.markdown("""
+    <div class="disclaimer">
+    💫 以上内容仅供参考，八字可以更深度的了解自己，但生活是不可被定义的。
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 聊天界面
+    st.divider()
+    render_chat_interface()
+
+    # 返回主页
+    st.divider()
     if st.button("🔙 返回主页"):
         st.session_state.current_page = "home"
         st.rerun()
