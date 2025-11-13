@@ -379,7 +379,7 @@ def load_media_resources():
                             all_images.append(p)
                 
                 # 加载生肖动图
-                for ext in ("*.mp4", "*.MP4"):
+                for ext in ("*.gif", "*.gif"):
                     video_files = glob.glob(os.path.join(image_dir, ext))
                     for p in video_files:
                         if os.path.isfile(p):
