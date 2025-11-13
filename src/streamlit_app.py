@@ -30,19 +30,20 @@ def set_background_video(video_path):
             video_data = video_file.read()
         video_base64 = base64.b64encode(video_data).decode()
         
-        # 创建背景视频的HTML/CSS
+        # 创建背景视频的HTML/CSS - 修改为居中显示
         background_video_html = f"""
         <style>
         #bgVideo {{
             position: fixed;
-            right: 0;
-            bottom: 0;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             min-width: 100%;
             min-height: 100%;
             width: auto;
             height: auto;
             z-index: -100;
-            background-size: cover;
+            object-fit: cover;
         }}
         
         /* 确保Streamlit内容在视频之上 */
@@ -55,8 +56,20 @@ def set_background_video(video_path):
             position: relative;
             z-index: 2;
         }}
+        
+        /* 添加黑色背景层确保视频覆盖整个屏幕 */
+        body::before {{
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: -101;
+        }}
         </style>
-        <video id="bgVideo" autoplay muted loop>
+        <video id="bgVideo" autoplay muted loop playsinline>
             <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
             您的浏览器不支持视频标签。
         </video>
