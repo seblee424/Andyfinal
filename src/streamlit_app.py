@@ -445,7 +445,7 @@ def display_media(song_meta, zodiac):
         zodiac_video = get_zodiac_video(zodiac)
         if zodiac_video and os.path.exists(zodiac_video):
             st.markdown("<div class='video-container'>", unsafe_allow_html=True)
-            st.video(zodiac_video)
+            st.video(zodiac_video, autoplay = True)
             st.markdown("</div>", unsafe_allow_html=True)
             st.caption(f"今日守护生肖：{zodiac}")
         else:
