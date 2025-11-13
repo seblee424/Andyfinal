@@ -13,6 +13,7 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
     st.warning("⚠️ OpenAI库未安装，部分功能将使用本地数据")
+
 # 页面配置
 st.set_page_config(
     page_title="八字塔罗运势",
@@ -29,65 +30,33 @@ def set_background_video(video_path):
             video_data = video_file.read()
         video_base64 = base64.b64encode(video_data).decode()
         
-        # 创建背景视频的HTML/CSS - 完全覆盖整个页面
+        # 创建背景视频的HTML/CSS
         background_video_html = f"""
         <style>
         #bgVideo {{
             position: fixed;
-            top: 0;
-            left: 0;
             right: 0;
             bottom: 0;
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
-            z-index: -9999;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            z-index: -100;
+            background-size: cover;
         }}
         
-        /* 重置Streamlit默认背景 */
-        .stApp {{
-            background: transparent !important;
-        }}
-        
-        /* 确保主要内容区域在视频之上 */
+        /* 确保Streamlit内容在视频之上 */
         .main {{
-            background-color: transparent !important;
             position: relative;
             z-index: 1;
         }}
         
         .block-container {{
-            background-color: rgba(255, 255, 255, 0.95);
-            border-radius: 10px;
-            padding: 2rem;
-            margin: 1rem;
-            backdrop-filter: blur(5px);
             position: relative;
             z-index: 2;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }}
-        
-        /* 确保所有内容都在视频之上 */
-        .stButton>button,
-        .stTextInput>div>div>input,
-        .stNumberInput>div>div>input,
-        .stSelectbox>div>div>select,
-        .stTextArea>div>div>textarea {{
-            position: relative;
-            z-index: 3 !important;
-        }}
-        
-        /* 图片和视频容器 */
-        .stImage,
-        .stVideo,
-        img,
-        video {{
-            position: relative;
-            z-index: 3 !important;
         }}
         </style>
-        
-        <video id="bgVideo" autoplay muted loop playsinline>
+        <video id="bgVideo" autoplay muted loop>
             <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
             您的浏览器不支持视频标签。
         </video>
@@ -102,7 +71,7 @@ def setup_background_video():
     """设置背景视频"""
     # 搜索视频文件 - 根据您的项目结构调整路径
     video_dirs = ["src/videos", "videos", "./src/videos", "./videos"]
-    video_extensions = ("*.mp4", "*.MP4", "*.mov", "*.MOV", "*.webm", "*.WEBM")
+    video_extensions = ("*.mp4", "*.MP4", "*.mov", "*.MOV")
     
     video_files = []
     for video_dir in video_dirs:
@@ -114,13 +83,12 @@ def setup_background_video():
     # 如果找到视频文件，选择第一个
     if video_files:
         video_path = video_files[0]
-        st.session_state.background_video = video_path
         return set_background_video(video_path)
     else:
         # 如果没有找到视频，使用备用方案
         st.markdown("""
         <style>
-        .stApp {
+        .main {
             background: linear-gradient(125deg, #0f0c29, #302b63, #24243e);
             background-size: 400% 400%;
             animation: gradient 15s ease infinite;
@@ -138,207 +106,109 @@ def setup_background_video():
 def set_simple_style():
     st.markdown("""
     <style>
-        /* 重置所有背景为透明 */
-        .stApp {{
-            background: transparent !important;
-        }}
-        
         .main { 
-            background-color: transparent !important;
-        }}
+            background-color: transparent;
+        }
         
-        /* 内容区域样式 */
-        .block-container {{
+        .block-container {
             background-color: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 2.5rem;
-            margin: 1.5rem;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            position: relative;
-            z-index: 1000;
-        }}
+            border-radius: 10px;
+            padding: 2rem;
+            margin: 1rem;
+            backdrop-filter: blur(5px);
+        }
         
-        .stButton>button {{
+        .stButton>button {
             background-color: #4CAF50;
             color: white;
             border: none;
-            border-radius: 12px;
-            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
             font-weight: bold;
-            margin: 0.3rem;
-            position: relative;
-            z-index: 1001;
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-            transition: all 0.3s ease;
-        }}
+            margin: 0.2rem;
+        }
         
-        .stButton>button:hover {{
-            background-color: #45a049;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
-        }}
-        
-        .recommendation-button {{
+        .recommendation-button {
             background-color: #6c5ce7;
             color: white;
             border: none;
-            border-radius: 12px;
-            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            padding: 0.8rem 1.5rem;
             font-weight: bold;
-            margin: 0.4rem;
+            margin: 0.3rem;
             width: 100%;
             text-align: center;
-            position: relative;
-            z-index: 1001;
-            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
-            transition: all 0.3s ease;
-        }}
+        }
         
-        .recommendation-button:hover {{
-            background-color: #5b4bc4;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
-        }}
-        
-        .active-button {{
+        .active-button {
             background-color: #e17055 !important;
-            box-shadow: 0 4px 12px rgba(225, 112, 85, 0.4) !important;
-        }}
+        }
         
-        .active-button:hover {{
-            background-color: #d15b40 !important;
-        }}
-        
-        /* 输入框样式 */
-        .stTextInput>div>div>input,
-        .stNumberInput>div>div>input,
-        .stSelectbox>div>div>select,
-        .stTextArea>div>div>textarea {{
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            position: relative;
-            z-index: 1001;
-        }}
-        
-        .disclaimer {{
-            background-color: rgba(255, 243, 205, 0.95);
+        .disclaimer {
+            background-color: rgba(255, 243, 205, 0.9);
             border: 1px solid #ffeaa7;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1.5rem 0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
             font-style: italic;
             color: #856404;
-            position: relative;
-            z-index: 1001;
-            backdrop-filter: blur(5px);
-        }}
+        }
         
-        .zodiac-section {{
-            text-align: center;
-            padding: 2.5rem;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
-            border-radius: 20px;
-            color: white;
-            margin: 1.5rem 0;
-            position: relative;
-            z-index: 1001;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }}
-        
-        .guardian-spirit {{
+        .zodiac-section {
             text-align: center;
             padding: 2rem;
-            background: linear-gradient(135deg, rgba(255, 215, 0, 0.95) 0%, rgba(255, 165, 0, 0.95) 100%);
-            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+            border-radius: 15px;
             color: white;
-            margin: 1.5rem 0;
-            position: relative;
-            z-index: 1001;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }}
+            margin: 1rem 0;
+        }
         
-        .recommendation-card {{
+        .guardian-spirit {
+            text-align: center;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.9) 0%, rgba(255, 165, 0, 0.9) 100%);
+            border-radius: 15px;
+            color: white;
+            margin: 1rem 0;
+        }
+        
+        .recommendation-card {
             background-color: rgba(255, 255, 255, 0.95);
             border: 2px solid #6c5ce7;
-            border-radius: 15px;
-            padding: 2rem;
-            margin: 1.5rem 0;
-            box-shadow: 0 8px 32px rgba(108, 92, 231, 0.15);
-            position: relative;
-            z-index: 1001;
-            backdrop-filter: blur(5px);
-        }}
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
         
-        .chat-message {{
-            padding: 1.2rem;
-            border-radius: 12px;
-            margin: 0.8rem 0;
-            background-color: rgba(255, 255, 255, 0.95);
-            position: relative;
-            z-index: 1001;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-        }}
+        .chat-message {
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 0.5rem 0;
+            background-color: rgba(255, 255, 255, 0.9);
+        }
         
-        .user-message {{
-            background-color: rgba(227, 242, 253, 0.95);
+        .user-message {
+            background-color: rgba(227, 242, 253, 0.9);
             border-left: 4px solid #2196f3;
-        }}
+        }
         
-        .assistant-message {{
-            background-color: rgba(243, 229, 245, 0.95);
+        .assistant-message {
+            background-color: rgba(243, 229, 245, 0.9);
             border-left: 4px solid #9c27b0;
-        }}
+        }
         
-        /* 视频容器样式 */
-        .video-container {{
-            position: relative;
-            width: 100%;
+        .video-container {
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            z-index: 1001;
-        }}
-        
-        /* 确保所有文本内容都在视频之上 */
-        h1, h2, h3, h4, h5, h6, p, div, span, label {{
-            position: relative;
-            z-index: 1001 !important;
-        }}
-        
-        /* 列容器 */
-        [data-testid="column"] {{
-            position: relative;
-            z-index: 1001 !important;
-        }}
-        
-        /* 表单容器 */
-        [data-testid="stForm"] {{
-            position: relative;
-            z-index: 1001 !important;
-        }}
-        
-        /* 侧边栏 */
-        .css-1d391kg {{
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            backdrop-filter: blur(10px);
-        }}
+        }
     </style>
     """, unsafe_allow_html=True)
 
 set_simple_style()
 
-# ... 其余代码保持不变（会话状态初始化、工具函数、页面组件等）
-# 这里省略了重复的代码部分，您只需要替换上面的背景视频和样式部分即可
-
-# 初始化OpenAI客户端
+# -------------------- 初始化OpenAI客户端 --------------------
 def get_openai_client():
     """获取OpenAI客户端，如果不可用则返回None"""
     if not OPENAI_AVAILABLE:
@@ -389,9 +259,6 @@ def init_session_state():
         st.session_state.personal_recommendations = {}
 
 init_session_state()
-
-# ... 其余代码保持不变（工具函数、页面组件等）
-# 您只需要将上面的背景视频和样式部分替换到您的现有代码中
 
 # -------------------- 核心工具函数 --------------------
 ZODIAC = ["鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪"]
