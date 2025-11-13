@@ -6,13 +6,13 @@ import numpy as np
 import random
 import base64
 
-
-
-# 初始化OpenAI客户端
-client = OpenAI(
-    api_key="sk-72997944466a4af2bcd52a068895f8cf",
-    base_url="https://api.deepseek.com"
-)
+# 尝试导入OpenAI，如果失败则使用降级方案
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    st.warning("⚠️ OpenAI库未安装，部分功能将使用本地数据")
 
 # 页面配置
 st.set_page_config(
@@ -220,6 +220,24 @@ def set_simple_style():
     """, unsafe_allow_html=True)
 
 set_simple_style()
+
+# -------------------- 初始化OpenAI客户端 --------------------
+def get_openai_client():
+    """获取OpenAI客户端，如果不可用则返回None"""
+    if not OPENAI_AVAILABLE:
+        return None
+    
+    try:
+        client = OpenAI(
+            api_key="sk-72997944466a4af2bcd52a068895f8cf",
+            base_url="https://api.deepseek.com"
+        )
+        return client
+    except Exception as e:
+        st.error(f"OpenAI客户端初始化失败: {e}")
+        return None
+
+client = get_openai_client()
 
 # -------------------- 会话状态初始化 --------------------
 def init_session_state():
@@ -451,6 +469,11 @@ def display_media(song_meta, zodiac):
 
 def generate_specific_recommendation(recommendation_type, zodiac, birth_year, place, birth_hour, gender):
     """生成特定类型的推荐"""
+    # 如果OpenAI不可用，使用本地数据
+    if not client:
+        local_data = LOCAL_RECOMMENDATIONS.get(recommendation_type, {})
+        return local_data.get(zodiac, f"暂无{recommendation_type}的本地推荐数据")
+    
     prompts = {
         "工作类型": f"基于生肖{zodiac}、{birth_year}年出生、{place}人、{gender}性的特点，推荐3个最适合的工作类型，并说明理由",
         "车型": f"根据生肖{zodiac}的性格特点和命理，推荐2款最适合的汽车类型，说明为什么适合",
@@ -490,6 +513,17 @@ def should_regenerate_fortune():
 
 def generate_daily_fortune(zodiac, birth_info):
     """生成今日运势"""
+    # 如果OpenAI不可用，使用本地运势
+    if not client:
+        fortunes = [
+            f"今日{get_zodiac_description(zodiac)}，运势平稳，保持积极心态。",
+            f"生肖{zodiac}今日贵人运佳，多与人交流会有意外收获。",
+            f"今天适合{get_zodiac_description(zodiac).split('，')[0]}，把握机会展现自己。",
+            f"{zodiac}生肖今日财运不错，但要注意理性消费。",
+            f"今日感情运势良好，{get_zodiac_description(zodiac)}的特质会为你加分。"
+        ]
+        return random.choice(fortunes)
+    
     try:
         prompt = f"""
         用户生肖：{zodiac}
@@ -514,6 +548,16 @@ def chat_with_ai(user_message, birth_info, zodiac):
     """与AI聊天"""
     if not birth_info:
         return "请先在主页输入您的八字信息。"
+    
+    # 如果OpenAI不可用，使用简单回复
+    if not client:
+        responses = [
+            "基于您的生肖信息，建议保持积极心态，好事自然会来。",
+            f"生肖{zodiac}通常{get_zodiac_description(zodiac).lower()}，在这方面多加发挥会有不错的结果。",
+            "这个问题需要更多个人信息来分析，请确保已输入完整的八字信息。",
+            "传统命理强调顺势而为，建议根据当前情况灵活调整策略。"
+        ]
+        return random.choice(responses)
     
     prompt = f"""
     用户信息：
