@@ -5,7 +5,7 @@ import glob
 import numpy as np
 import random
 import base64
-import OpenAI  # 添加这行导入
+import openAI  # 添加这行导入
 
 # 初始化OpenAI客户端
 client = OpenAI(
