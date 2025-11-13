@@ -23,7 +23,7 @@ def set_background_video(video_path):
             video_data = video_file.read()
         video_base64 = base64.b64encode(video_data).decode()
         
-        # 创建背景视频的HTML/CSS - 调整z-index为最低
+        # 创建背景视频的HTML/CSS
         background_video_html = f"""
         <style>
         #bgVideo {{
@@ -34,11 +34,11 @@ def set_background_video(video_path):
             min-height: 100%;
             width: auto;
             height: auto;
-            z-index: -9999;  /* 设置为最低层级 */
+            z-index: -100;
             background-size: cover;
         }}
         
-        /* 确保所有Streamlit内容在视频之上 */
+        /* 确保Streamlit内容在视频之上 */
         .main {{
             position: relative;
             z-index: 1;
@@ -49,11 +49,16 @@ def set_background_video(video_path):
             z-index: 2;
         }}
         
-        .stApp {{
-            background: transparent;
+        /* 生肖动图样式 */
+        .zodiac-video {{
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            width: 100%;
+            max-height: 300px;
+            object-fit: cover;
         }}
         </style>
-        <video id="bgVideo" autoplay muted loop playsinline>
+        <video id="bgVideo" autoplay muted loop>
             <source src="data:video/mp4;base64,{video_base64}" type="video/mp4">
             您的浏览器不支持视频标签。
         </video>
@@ -103,212 +108,109 @@ def setup_background_video():
 def set_simple_style():
     st.markdown("""
     <style>
-        /* 重置所有主要容器的背景 */
         .main { 
-            background-color: transparent !important;
+            background-color: transparent;
         }
         
-        .stApp {
-            background: transparent !important;
-        }
-        
-        /* 内容区域 - 确保在视频之上 */
         .block-container {
-            background-color: rgba(255, 255, 255, 0.92) !important;
-            border-radius: 15px;
-            padding: 2.5rem;
-            margin: 1.5rem;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            position: relative;
-            z-index: 1000;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 2rem;
+            margin: 1rem;
+            backdrop-filter: blur(5px);
         }
         
-        /* 图片容器确保在视频之上 */
-        .stImage {
-            position: relative;
-            z-index: 1001 !important;
-        }
-        
-        img {
-            position: relative;
-            z-index: 1001 !important;
-        }
-        
-        /* 音频播放器 */
-        .stAudio {
-            position: relative;
-            z-index: 1001 !important;
-        }
-        
-        /* 按钮样式 */
         .stButton>button {
             background-color: #4CAF50;
             color: white;
             border: none;
-            border-radius: 12px;
-            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            padding: 0.5rem 1.5rem;
             font-weight: bold;
-            margin: 0.3rem;
-            position: relative;
-            z-index: 1001;
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-            transition: all 0.3s ease;
-        }
-        
-        .stButton>button:hover {
-            background-color: #45a049;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            margin: 0.2rem;
         }
         
         .recommendation-button {
             background-color: #6c5ce7;
             color: white;
             border: none;
-            border-radius: 12px;
-            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            padding: 0.8rem 1.5rem;
             font-weight: bold;
-            margin: 0.4rem;
+            margin: 0.3rem;
             width: 100%;
             text-align: center;
-            position: relative;
-            z-index: 1001;
-            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
-            transition: all 0.3s ease;
         }
         
         .recommendation-button:hover {
             background-color: #5b4bc4;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
         }
         
         .active-button {
             background-color: #e17055 !important;
-            box-shadow: 0 4px 12px rgba(225, 112, 85, 0.4) !important;
-        }
-        
-        .active-button:hover {
-            background-color: #d15b40 !important;
-        }
-        
-        /* 文本输入框 */
-        .stTextInput>div>div>input {
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            position: relative;
-            z-index: 1001;
-        }
-        
-        .stNumberInput>div>div>input {
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            position: relative;
-            z-index: 1001;
-        }
-        
-        .stSelectbox>div>div>select {
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            position: relative;
-            z-index: 1001;
         }
         
         .disclaimer {
-            background-color: rgba(255, 243, 205, 0.95);
+            background-color: rgba(255, 243, 205, 0.9);
             border: 1px solid #ffeaa7;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1.5rem 0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
             font-style: italic;
             color: #856404;
-            position: relative;
-            z-index: 1001;
-            backdrop-filter: blur(5px);
         }
         
         .zodiac-section {
             text-align: center;
-            padding: 2.5rem;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
-            border-radius: 20px;
+            padding: 2rem;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+            border-radius: 15px;
             color: white;
-            margin: 1.5rem 0;
-            position: relative;
-            z-index: 1001;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin: 1rem 0;
         }
         
         .guardian-spirit {
             text-align: center;
-            padding: 2rem;
-            background: linear-gradient(135deg, rgba(255, 215, 0, 0.95) 0%, rgba(255, 165, 0, 0.95) 100%);
-            border-radius: 20px;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.9) 0%, rgba(255, 165, 0, 0.9) 100%);
+            border-radius: 15px;
             color: white;
-            margin: 1.5rem 0;
-            position: relative;
-            z-index: 1001;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin: 1rem 0;
         }
         
         .recommendation-card {
             background-color: rgba(255, 255, 255, 0.95);
             border: 2px solid #6c5ce7;
-            border-radius: 15px;
-            padding: 2rem;
-            margin: 1.5rem 0;
-            box-shadow: 0 8px 32px rgba(108, 92, 231, 0.15);
-            position: relative;
-            z-index: 1001;
-            backdrop-filter: blur(5px);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         
         .chat-message {
-            padding: 1.2rem;
-            border-radius: 12px;
-            margin: 0.8rem 0;
-            background-color: rgba(255, 255, 255, 0.95);
-            position: relative;
-            z-index: 1001;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 0.5rem 0;
+            background-color: rgba(255, 255, 255, 0.9);
         }
         
         .user-message {
-            background-color: rgba(227, 242, 253, 0.95);
+            background-color: rgba(227, 242, 253, 0.9);
             border-left: 4px solid #2196f3;
         }
         
         .assistant-message {
-            background-color: rgba(243, 229, 245, 0.95);
+            background-color: rgba(243, 229, 245, 0.9);
             border-left: 4px solid #9c27b0;
         }
         
-        /* 确保所有文本内容都在视频之上 */
-        h1, h2, h3, h4, h5, h6, p, div, span {
+        /* 视频容器样式 */
+        .video-container {
             position: relative;
-            z-index: 1001 !important;
-        }
-        
-        /* 列容器 */
-        [data-testid="column"] {
-            position: relative;
-            z-index: 1001 !important;
-        }
-        
-        /* 表单容器 */
-        [data-testid="stForm"] {
-            position: relative;
-            z-index: 1001 !important;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
     </style>
     """, unsafe_allow_html=True)
@@ -335,8 +237,8 @@ def init_session_state():
         st.session_state.songs_meta = []
     if "all_images" not in st.session_state:
         st.session_state.all_images = []
-    if "zodiac_images" not in st.session_state:
-        st.session_state.zodiac_images = {}
+    if "zodiac_videos" not in st.session_state:  # 改为存储视频
+        st.session_state.zodiac_videos = {}
     if "last_fortune_date" not in st.session_state:
         st.session_state.last_fortune_date = None
     if "chat_history" not in st.session_state:
@@ -394,11 +296,11 @@ def get_guardian_spirit(zodiac: str):
     return GUARDIAN_SPIRITS.get(zodiac, "")
 
 def load_media_resources():
-    """加载音乐和图片资源 - 根据您的项目结构调整路径"""
+    """加载音乐和视频资源 - 根据您的项目结构调整路径"""
     try:
         songs = []
         all_images = []
-        zodiac_images = {}
+        zodiac_videos = {}  # 改为存储视频
 
         # 加载音乐 - 从 src/music/ 目录
         music_dirs = ["src/music", "./src/music", "music", "./music"]
@@ -426,27 +328,34 @@ def load_media_resources():
                                 "path": p
                             })
 
-        # 加载图片 - 从 src/images/ 目录
+        # 加载图片和视频 - 从 src/images/ 目录
         image_dirs = ["src/images", "./src/images", "images", "./images"]
         for image_dir in image_dirs:
             if os.path.exists(image_dir):
+                # 加载静态图片
                 for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
                     image_files = glob.glob(os.path.join(image_dir, "**", ext), recursive=True)
                     for p in image_files:
                         if os.path.isfile(p):
                             all_images.append(p)
+                
+                # 加载生肖动图 (mp4格式)
+                for ext in ("*.mp4", "*.MP4", "*.mov", "*.MOV"):
+                    video_files = glob.glob(os.path.join(image_dir, "**", ext), recursive=True)
+                    for p in video_files:
+                        if os.path.isfile(p):
                             filename = os.path.basename(p).lower()
                             for zodiac in ZODIAC:
                                 if zodiac in filename:
-                                    zodiac_images[zodiac] = p
+                                    zodiac_videos[zodiac] = p
                                     break
 
         st.session_state.songs_meta = songs
         st.session_state.all_images = all_images
-        st.session_state.zodiac_images = zodiac_images
+        st.session_state.zodiac_videos = zodiac_videos  # 改为存储视频
         st.session_state.media_indexed = True
         
-        st.success(f"✅ 加载了 {len(songs)} 首音乐和 {len(all_images)} 张图片")
+        st.success(f"✅ 加载了 {len(songs)} 首音乐, {len(all_images)} 张图片和 {len(zodiac_videos)} 个生肖动图")
         
     except Exception as e:
         st.error(f"加载媒体资源时出错: {e}")
@@ -502,24 +411,53 @@ def get_random_image():
         return random.choice(all_images)
     return None
 
-def get_zodiac_image(zodiac):
-    zodiac_images = st.session_state.zodiac_images
-    return zodiac_images.get(zodiac)
+def get_zodiac_video(zodiac):
+    """获取生肖动图"""
+    zodiac_videos = st.session_state.zodiac_videos
+    return zodiac_videos.get(zodiac)
+
+def display_zodiac_video(video_path, zodiac):
+    """显示生肖动图"""
+    if video_path and os.path.exists(video_path):
+        try:
+            # 读取视频文件
+            with open(video_path, "rb") as video_file:
+                video_bytes = video_file.read()
+            
+            # 显示视频
+            st.video(video_bytes)
+            
+        except Exception as e:
+            st.error(f"加载生肖动图失败: {e}")
+            # 备用方案：显示随机图片
+            random_image = get_random_image()
+            if random_image and os.path.exists(random_image):
+                st.image(random_image, caption=f"今日守护生肖：{zodiac}", use_container_width=True)
+    else:
+        # 如果没有找到动图，显示随机图片
+        random_image = get_random_image()
+        if random_image and os.path.exists(random_image):
+            st.image(random_image, caption=f"今日守护生肖：{zodiac}", use_container_width=True)
+        else:
+            st.info("📷 暂无生肖动图资源")
 
 def display_media(song_meta, zodiac):
-    """显示图片和音乐"""
+    """显示动图和音乐"""
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        zodiac_image = get_zodiac_image(zodiac)
-        if zodiac_image and os.path.exists(zodiac_image):
-            st.image(zodiac_image, caption=f"今日守护生肖：{zodiac}", use_container_width=True)
+        zodiac_video = get_zodiac_video(zodiac)
+        if zodiac_video:
+            st.markdown(f"<div class='video-container'>", unsafe_allow_html=True)
+            display_zodiac_video(zodiac_video, zodiac)
+            st.markdown(f"</div>", unsafe_allow_html=True)
+            st.caption(f"今日守护生肖：{zodiac}")
         else:
             random_image = get_random_image()
             if random_image and os.path.exists(random_image):
                 st.image(random_image, caption=f"今日守护生肖：{zodiac}", use_container_width=True)
             else:
-                st.info("📷 暂无图片资源")
+                st.info("📷 暂无生肖动图资源")
     
     with col2:
         st.subheader(f"🎵 {song_meta['title']}")
@@ -862,6 +800,7 @@ def render_personal_recommendation():
     for idx, (display_name, rec_type) in enumerate(recommendation_types.items()):
         with cols[idx % 4]:
             is_active = st.session_state.recommendation_type == rec_type
+            button_style = "active-button" if is_active else ""
             if st.button(display_name, use_container_width=True, key=f"btn_{rec_type}"):
                 st.session_state.recommendation_type = rec_type
                 st.session_state.current_recommendation = None
